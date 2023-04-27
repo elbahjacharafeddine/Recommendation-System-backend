@@ -82,3 +82,10 @@ class Commentaire(models.Model):
 
     def __str__(self):
         return f"{self.content}"
+
+
+class RestPassword(models.Model):
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(db_index=True, unique=True, null=False, blank=True)
+    token = models.TextField()
+    date = models.DateField()

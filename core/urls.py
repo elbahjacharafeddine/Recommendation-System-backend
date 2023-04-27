@@ -1,7 +1,8 @@
 from django.urls import path, include
 from django.contrib import admin
 from api.authentication.viewsets.social_login import GithubSocialLogin
-from api.user.viewsets import ImageView, CommentaireView, EditProfileView, UserProfileView
+from api.user.viewsets import ImageView, CommentaireView, EditProfileView, UserProfileView, RestPasswordView, \
+    ChangePasswordView
 from api.user.api_potatoes import ImageViewPotato
 from api.user.viewsets import UserViewSet
 urlpatterns = [
@@ -28,5 +29,7 @@ urlpatterns = [
     path('predict-potato', ImageViewPotato.as_view(), name="predicting"),
     path('save-commentaire', CommentaireView.as_view(),name ="save_commentaire"),
     path("edit-profile", EditProfileView.as_view(), name= "edit-profile"),
-    path("user-profile", UserProfileView.as_view(), name="user-profile")
+    path("user-profile", UserProfileView.as_view(), name="user-profile"),
+    path('rest-password', RestPasswordView.as_view(), name="rest-password"),
+    path('change-password', ChangePasswordView.as_view(), name="change-password"),
 ]

@@ -1,5 +1,5 @@
 from api.user.serializers import UserSerializer
-from api.user.models import User
+from api.user.models import User, RestPassword
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -396,13 +396,119 @@ class UserProfileView(APIView):
             all_user = User.objects.all()
             for u in all_user:
                 if u.email == email:
-                    data_user ={
-                        "email" : u.email,
-                        "firstName" : u.firstName,
-                        "lastName" : u.lastName,
-                        "telephone" : u.telephone,
+                    data_user = {
+                        "email": u.email,
+                        "firstName": u.firstName,
+                        "lastName": u.lastName,
+                        "telephone": u.telephone,
                         "address": u.address,
-                        "naissance" : u.dateNaissance
+                        "naissance": u.dateNaissance
                     }
                     return JsonResponse({"success": data_user})
             return JsonResponse({"error": "error"})
+
+
+from django.core.mail import send_mail
+from django.conf import settings
+
+import jwt
+
+import smtplib
+
+
+from django.conf import settings
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+def generate_jwt_token(payload):
+    """
+    Generate a JWT token with the given payload
+    """
+    jwt_secret = 'my_secret_key'  # Change this to your own secret key
+    token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+    return token.encode('utf-8')
+
+
+class RestPasswordView(APIView):
+    def post(self, request):
+        if request.method == "POST":
+            email = request.POST.get("email")
+            # user_email = User.objects.get(email= email)
+            found_it = False
+            user_app = User()
+            all_user = User.objects.all()
+            for user in all_user:
+                if user.email == email:
+                    found_it = True
+                    user_app.id = user.id
+                    user_app.username = user.username
+                    user_app.email = user.email
+                    break
+            if found_it:
+                # try:
+                rest_password = RestPassword()
+                rest_password.email = email
+                payload = {
+                    'user_id': user_app.id,
+                    'username': user_app.username,
+                    'email': user_app.email,
+                    # 'date' : date.today()
+                }
+                rest_password.token = generate_jwt_token(payload)
+                rest_password.date = date.today()
+                rest_password.save()
+
+                reset_password_link = "http://localhost:3000/authentication/reset-password/" + str(
+                    generate_jwt_token(payload))
+
+                # Utiliser un template HTML pour le corps de l'email
+                html_message = render_to_string('password_reset_email.html',
+                                                {'reset_password_link': reset_password_link})
+
+                # Envoyer l'email
+                send_mail(
+                    subject='Demande de réinitialisation de mot de passe',
+                    message=strip_tags(html_message),
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[email],
+                    html_message=html_message
+                )
+
+                return JsonResponse({"success": "good"})
+
+                # except smtplib.SMTPException as e:
+                #     return JsonResponse({"success": "error connection"})
+                # except:
+                #     return JsonResponse({"success": "error"})
+            else:
+                return JsonResponse({"success": "not found"})
+
+
+from django.contrib.auth.hashers import make_password
+
+class ChangePasswordView(APIView):
+    def post(self, request):
+        token = request.POST.get("token")
+        password = request.POST.get("password")
+        found_it = False
+        email = ""
+        all_demande_rest_password = RestPassword.objects.all()
+        for demande in all_demande_rest_password:
+            if demande.token == token:
+                found_it = True
+                email = demande.email
+
+        all_users = User.objects.all()
+        user_update = User()
+        for user in all_users:
+            if user.email == email:
+                user_update = user
+        if request.method == "POST":
+            if found_it:
+                user_update.password = make_password(password)
+                user_update.save()
+                RestPassword.objects.filter(token=token).delete()
+                return JsonResponse({"success": "password changed with success"})
+        else:
+            return JsonResponse({"success": "error"})
+        return JsonResponse({'success': "test"})
