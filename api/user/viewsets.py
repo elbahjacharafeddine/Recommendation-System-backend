@@ -234,7 +234,9 @@ def get_user_by_token(token):
             return obj.user
     return False;
 
-
+import os
+from datetime import datetime
+from django.core.files.storage import default_storage
 class ImageView(APIView):
     def post(self, request):
 
@@ -247,6 +249,7 @@ class ImageView(APIView):
         prediction = Prediction()
 
         if image_file and type_image and result != False:
+            extension = os.path.splitext(image_file.name)[1]
 
             # Use context managers to open the file
             with Image.open(image_file) as img:
@@ -283,6 +286,14 @@ class ImageView(APIView):
                         "confidence": str(np.max(predictions))
                     }
 
+                    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')
+
+                    # Concatène la chaîne de caractères et l'extension de fichier
+                    filename = f"images/{timestamp}{extension}"
+
+                    # Enregistre l'image avec le nouveau nom de fichier
+                    default_storage.save(filename, image_file)
+                    prediction.image = filename
                     prediction.type = type_image
                     prediction.classe = predicted_class
                     prediction.coeff = float(str(np.max(predictions)))
@@ -310,6 +321,14 @@ class ImageView(APIView):
                         "confidence": float(confidence)
                     }
                     prediction = Prediction()
+                    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')
+
+                    # Concatène la chaîne de caractères et l'extension de fichier
+                    filename = f"images/{timestamp}{extension}"
+
+                    # Enregistre l'image avec le nouveau nom de fichier
+                    default_storage.save(filename, image_file)
+                    prediction.image = filename
                     prediction.type = type_image
                     prediction.classe = predicted_class
                     prediction.coeff = float(str(np.max(predictions)))
@@ -415,11 +434,12 @@ import jwt
 
 import smtplib
 
-
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+
+
 def generate_jwt_token(payload):
     """
     Generate a JWT token with the given payload
@@ -486,6 +506,7 @@ class RestPasswordView(APIView):
 
 from django.contrib.auth.hashers import make_password
 
+
 class ChangePasswordView(APIView):
     def post(self, request):
         token = request.POST.get("token")
@@ -512,3 +533,39 @@ class ChangePasswordView(APIView):
         else:
             return JsonResponse({"success": "error"})
         return JsonResponse({'success': "test"})
+
+
+from django.http import HttpResponse, JsonResponse
+from django.core import serializers
+import base64
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+
+class PredictionOfUser(APIView):
+    def post(self, request):
+        if request.method == "POST":
+            token = request.POST.get("token")
+            all_token = ActiveSession.objects.all()
+            fount_it = False
+            user_id = 0
+            for t in all_token:
+                if t.token == token:
+                    fount_it = True
+                    user_id = t.user_id
+            if fount_it:
+                all_predictions = Prediction.objects.filter(user=user_id)
+                predictions_list = serializers.serialize('python', all_predictions)
+                predictions_dict_list = [p['fields'] for p in predictions_list]
+                print(predictions_dict_list)
+                for p in predictions_dict_list:
+                    image_content = default_storage.open(p['image'], 'rb').read()
+
+                    # Encoder l'image en base64 pour l'inclure dans la réponse JSON
+                    encoded_image = base64.b64encode(image_content).decode('utf-8')
+                    p['image'] = encoded_image
+                return JsonResponse({'predictions': predictions_dict_list})
+                # return JsonResponse({"success": all_predictions})
+            else:
+                return HttpResponse("Token not found", status=401)
+        else:
+            return HttpResponse("Method not allowed", status=405)
