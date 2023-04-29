@@ -556,7 +556,6 @@ class PredictionOfUser(APIView):
                 all_predictions = Prediction.objects.filter(user=user_id)
                 predictions_list = serializers.serialize('python', all_predictions)
                 predictions_dict_list = [p['fields'] for p in predictions_list]
-                print(predictions_dict_list)
                 for p in predictions_dict_list:
                     image_content = default_storage.open(p['image'], 'rb').read()
 
