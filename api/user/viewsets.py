@@ -568,3 +568,19 @@ class PredictionOfUser(APIView):
                 return HttpResponse("Token not found", status=401)
         else:
             return HttpResponse("Method not allowed", status=405)
+
+
+class StatistiqueOfUser(APIView):
+    def post(self, request):
+        if request.method == "POST":
+            id = request.POST.get("id")
+            if id:
+                total_prediction = Prediction.objects.filter(user_id = id).count()
+                total_commentaire = Commentaire.objects.filter(user_id = id).count()
+                data ={
+                    "predicition": total_prediction,
+                    "commentaire": total_commentaire
+                }
+                return JsonResponse(data)
+            else:
+                return JsonResponse({"error elbahja":"error"})
