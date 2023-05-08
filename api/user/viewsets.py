@@ -212,6 +212,9 @@ def load_model():
     model_path = os.path.join(settings.BASE_DIR, 'api', 'user', 'potatoes_model')
     return tf.keras.models.load_model(model_path)
 
+def load_model3():
+    model_path = os.path.join(settings.BASE_DIR, 'api', 'user', 'appels-model')
+    return tf.keras.models.load_model(model_path)
 
 def read_file_as_image(file):
     data = file.read()
@@ -313,6 +316,41 @@ class ImageView(APIView):
                     # Faire la prédiction
                     model = load_model()
                     CLASS_NAMES = ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy"]
+                    predictions = model.predict(image_array)
+                    predicted_class = CLASS_NAMES[np.argmax(predictions[0])]
+                    confidence = np.max(predictions[0])
+                    attributes = {
+                        "class": predicted_class,  # test(predictions)
+                        "confidence": float(confidence)
+                    }
+                    prediction = Prediction()
+                    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')
+
+                    # Concatène la chaîne de caractères et l'extension de fichier
+                    filename = f"images/{timestamp}{extension}"
+
+                    # Enregistre l'image avec le nouveau nom de fichier
+                    default_storage.save(filename, image_file)
+                    prediction.image = filename
+                    prediction.type = type_image
+                    prediction.classe = predicted_class
+                    prediction.coeff = float(str(np.max(predictions)))
+                    prediction.date = date.today()
+                    prediction.user = get_user_by_token(token)
+                    prediction.save()
+                    return JsonResponse(attributes)
+                elif type_image == "apple":
+                    resized_image = cv2.resize(np.array(img), (256, 256))
+
+                    # Convertir l'image en un tableau numpy
+                    image_array = np.array(resized_image, dtype=np.float32)
+
+                    # Prétraiter l'image
+                    image_array /= 255.0
+                    image_array = np.expand_dims(image_array, axis=0)
+                    # Faire la prédiction
+                    model = load_model3()
+                    CLASS_NAMES = ['Apple___Black_rot', 'Apple___healthy']
                     predictions = model.predict(image_array)
                     predicted_class = CLASS_NAMES[np.argmax(predictions[0])]
                     confidence = np.max(predictions[0])
