@@ -594,7 +594,6 @@ class PredictionOfUser(APIView):
                 all_predictions = Prediction.objects.filter(user=user_id)
                 predictions_list = serializers.serialize('python', all_predictions)
                 predictions_dict_list = [p['fields'] for p in predictions_list]
-                print(predictions_dict_list)
                 for p in predictions_dict_list:
                     image_content = default_storage.open(p['image'], 'rb').read()
 
@@ -607,3 +606,19 @@ class PredictionOfUser(APIView):
                 return HttpResponse("Token not found", status=401)
         else:
             return HttpResponse("Method not allowed", status=405)
+
+
+class StatistiqueOfUser(APIView):
+    def post(self, request):
+        if request.method == "POST":
+            id = request.POST.get("id")
+            if id:
+                total_prediction = Prediction.objects.filter(user_id = id).count()
+                total_commentaire = Commentaire.objects.filter(user_id = id).count()
+                data ={
+                    "predicition": total_prediction,
+                    "commentaire": total_commentaire
+                }
+                return JsonResponse(data)
+            else:
+                return JsonResponse({"error elbahja":"error"})
